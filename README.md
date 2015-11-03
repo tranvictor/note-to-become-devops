@@ -6,4 +6,4 @@ It contains script to update system, install MongoDB and Redis, common Ubuntu ke
 Require: 2 additional attached storage devices for data and log. They are should be separated because of different I/O behaviours.
 
 ## [Ubuntu script for Ruby (Rails) app]()
-## [Explaination of some Linux limits configuration]()
+## [Explaination of some Linux limits configuration](https://github.com/tranvictor/note-to-become-devops/tree/master/linux_limits_configuration)
