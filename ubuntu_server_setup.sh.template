@@ -1,9 +1,32 @@
+LOG_DEVICE="xvdd"
+
 echo ">> Prepare"
 ls /etc/apt/sources.list.d/ | grep mongodb
 if [ $? -ne 0 ]; then
   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
   echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.0.list
 fi
+
+echo ">>> format log disk"
+# for log
+sudo mkfs.ext4 /dev/$LOG_DEVICE
+sudo mkdir /log
+echo "/dev/$LOG_DEVICE /log ext4 defaults,auto,noatime,noexec 0 0" | sudo tee -a /etc/fstab
+sudo mount /log
+sudo chown ubuntu:ubuntu /log
+
+echo ">>> Increase ulimit"
+echo '
+* soft nofile 64000
+* hard nofile 64000
+* soft nproc 32000
+* hard nproc 32000
+' | sudo tee -a /etc/security/limits.conf
+echo '
+* soft nproc 32000
+* hard nproc 32000
+' | sudo tee -a /etc/security/limits.d/90-nproc.conf
+
 
 echo ">> Updating System"
 sudo apt-get update
@@ -14,7 +37,10 @@ sudo apt-get dist-upgrade -qq --force-yes
 # end handling
 sudo apt-get -y upgrade
 echo "Installing packages"
-sudo apt-get -y install build-essential tcl8.5 imagemagick git-core nginx redis-server curl nodejs htop
+sudo apt-get -y install build-essential tcl8.5 imagemagick git-core nginx redis-server curl nodejs-legacy npm htop
+
+echo ">> Installing bower"
+sudo npm install bower -g
 
 echo ">> Installing MongoDB"
 sudo apt-get install -y mongodb-org
@@ -28,6 +54,13 @@ then
   source $HOME/.bash_profile
 else
   echo ">>> rvm already installed"
+fi
+
+. $HOME/.rvmrc &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "rvm_trust_rvmrcs_flag=1" > $HOME/.rvmrc
+else
+  echo ">>> already have .rvmrc"
 fi
 
 cat $HOME/.bash_profile | grep RAILS_ENV
@@ -55,54 +88,5 @@ if [ $BUNDLE = true ]; then
 else
   gem install bundler -V --no-ri --no-rdoc
 fi
-
-echo ">> Setting up environment variables"
-cat $HOME/.bashrc | grep "# Deployment variables"
-if [ $? -ne 0 ]; then
-  VARIABLES="
-# Deployment variables
-export SECRET_KEY_BASE=$CLICKLION_SECRET_KEY_BASE
-export PAYPAL_LOGIN=$CLICKLION_PAYPAL_LOGIN
-export PAYPAL_PASSWORD=$CLICKLION_PAYPAL_PASSWORD
-export PAYPAL_SIGNATURE=$CLICKLION_PAYPAL_SIGNATURE
-export MAILGUN_USERNAME=$CLICKLION_MAILGUN_USERNAME
-export MAILGUN_PASSWORD=$CLICKLION_MAILGUN_PASSWORD
-export MAILGUN_DOMAIN_NAME=$CLICKLION_MAILGUN_DOMAIN_NAME
-export API_ACCESS_KEY=$CLICKLION_API_ACCESS_KEY
-export GITHUB_USER=$CLICKLION_GITHUB_USER
-export GITHUB_REPO=$CLICKLION_GITHUB_REPO
-export GITHUB_OAUTH_TOKEN=$CLICKLION_GITHUB_OAUTH_TOKEN
-export FACEBOOK_APP_ID=$CLICKLION_FACEBOOK_APP_ID
-export FACEBOOK_APP_SECRET=$CLICKLION_FACEBOOK_APP_SECRET
-export GOOGLE_CLIENT_ID=$CLICKLION_GOOGLE_CLIENT_ID
-export GOOGLE_CLIENT_SECRET_KEY=$CLICKLION_GOOGLE_CLIENT_SECRET_KEY
-export AWS_DEFAULT_REGION=$CLICKLION_AWS_DEFAULT_REGION
-export S3_BUCKET_NAME=$CLICKLION_S3_BUCKET_NAME
-export AWS_ACCESS_KEY_ID=$CLICKLION_AWS_ACCESS_KEY_ID
-export AWS_SECRET_ACCESS_KEY=$CLICKLION_AWS_SECRET_ACCESS_KEY
-  "
-  echo "Prepend variable to .bashrc"
-  echo $VARIABLES
-
-  echo "$VARIABLES" >> /tmp/tempfile
-  cat $HOME/.bashrc >> /tmp/tempfile
-  mv /tmp/tempfile $HOME/.bashrc
-  source $HOME/.bashrc
-else
-  echo ">>> environment variables are already set"
-fi
-
-echo ">>> Increase ulimit"
-echo '
-* soft nofile 64000
-* hard nofile 64000
-* soft nproc 32000
-* hard nproc 32000
-' | sudo tee -a /etc/security/limits.conf
-echo '
-* soft nproc 32000
-* hard nproc 32000
-' | sudo tee -a /etc/security/limits.d/90-nproc.conf
-
-echo ">> DONE"
+echo ">> DONE, you should reboot this server."
 
